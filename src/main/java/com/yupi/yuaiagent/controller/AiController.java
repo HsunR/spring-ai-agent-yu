@@ -1,0 +1,154 @@
+package com.yupi.yuaiagent.controller;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yupi.yuaiagent.agent.YuManus;
+import com.yupi.yuaiagent.app.LoveApp;
+import com.yupi.yuaiagent.app.SpringAiApp;
+import jakarta.annotation.Resource;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+@RestController
+@RequestMapping("/ai")
+public class AiController {
+
+    @Resource
+    private LoveApp loveApp;
+
+    @Resource
+    private SpringAiApp springAiApp;
+
+    @Resource
+    private ToolCallback[] allTools;
+
+    @Resource
+    private ChatModel dashscopeChatModel;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * 同步调用 AI 恋爱大师应用
+     *
+     * @param message
+     * @param chatId
+     * @return
+     */
+    @GetMapping("/love_app/chat/sync")
+    public String doChatWithLoveAppSync(String message, String chatId) {
+        return loveApp.doChat(message, chatId);
+    }
+
+    /**
+     * SSE 流式调用 AI 恋爱大师应用
+     *
+     * @param message
+     * @param chatId
+     * @return
+     */
+    @GetMapping(value = "/love_app/chat/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> doChatWithLoveAppSSE(String message, String chatId) {
+        return loveApp.doChatByStream(message, chatId);
+    }
+
+    /**
+     * SSE 流式调用 AI 恋爱大师应用
+     *
+     * @param message
+     * @param chatId
+     * @return
+     */
+    @GetMapping(value = "/love_app/chat/server_sent_event")
+    public Flux<ServerSentEvent<String>> doChatWithLoveAppServerSentEvent(String message, String chatId) {
+        return loveApp.doChatByStream(message, chatId)
+                .map(chunk -> ServerSentEvent.<String>builder()
+                        .data(chunk)
+                        .build());
+    }
+
+    /**
+     * SSE 流式调用 AI 恋爱大师应用
+     *
+     * @param message
+     * @param chatId
+     * @return
+     */
+    @GetMapping(value = "/love_app/chat/sse_emitter")
+    public SseEmitter doChatWithLoveAppServerSseEmitter(String message, String chatId) {
+        // 创建一个超时时间较长的 SseEmitter
+        SseEmitter sseEmitter = new SseEmitter(180000L); // 3 分钟超时
+        // 获取 Flux 响应式数据流并且直接通过订阅推送给 SseEmitter
+        loveApp.doChatByStream(message, chatId)
+                .subscribe(chunk -> {
+                    try {
+                        sseEmitter.send(chunk);
+                    } catch (IOException e) {
+                        sseEmitter.completeWithError(e);
+                    }
+                }, sseEmitter::completeWithError, sseEmitter::complete);
+        // 返回
+        return sseEmitter;
+    }
+
+    /**
+     * 流式调用 Manus 超级智能体
+     *
+     * @param message
+     * @return
+     */
+    @GetMapping("/manus/chat")
+    public SseEmitter doChatWithManus(String message) {
+        YuManus yuManus = new YuManus(allTools, dashscopeChatModel);
+        return yuManus.runStream(message);
+    }
+
+    @GetMapping("/spring_ai/chat/sync")
+    public String doChatWithSpringAiSync(@RequestParam String message,
+                                          @RequestParam(required = false) String chatId) {
+        if (chatId == null || chatId.isEmpty()) {
+            chatId = "spring_ai_" + System.currentTimeMillis();
+        }
+        return springAiApp.doChat(message, chatId);
+    }
+
+    @GetMapping(value = "/spring_ai/chat/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> doChatWithSpringAiSSE(@RequestParam String message,
+                                               @RequestParam(required = false) String chatId,
+                                               @RequestParam(required = false) String documents) {
+        if (chatId == null || chatId.isEmpty()) {
+            chatId = "spring_ai_" + System.currentTimeMillis();
+        }
+        
+        List<SpringAiApp.RetrievedDocument> preRetrievedDocs = null;
+        if (documents != null && !documents.isEmpty()) {
+            try {
+                preRetrievedDocs = objectMapper.readValue(documents, new TypeReference<List<SpringAiApp.RetrievedDocument>>() {});
+            } catch (Exception e) {
+                return Flux.error(new IllegalArgumentException("Invalid documents JSON: " + e.getMessage()));
+            }
+        }
+        
+        return springAiApp.doChatByStream(message, chatId, preRetrievedDocs);
+    }
+
+    @GetMapping("/spring_ai/retrieve")
+    public List<SpringAiApp.RetrievedDocument> retrieveDocuments(
+            @RequestParam String message,
+            @RequestParam(required = false, defaultValue = "5") int topK) {
+        return springAiApp.retrieveDocuments(message, topK);
+    }
+
+
+}
