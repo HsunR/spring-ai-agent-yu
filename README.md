@@ -42,23 +42,21 @@ ai-agent-frontend/
 - 打字机效果副标题
 - 3D 卡片悬停效果
 - 应用入口导航
-
+![alt text](README/首页.png)
 ### 2. AI超级智能体 (SuperAgent)
 - 全能型 AI 助手对话
 - 智能分句气泡显示
 - 打字机效果回复
 - SSE 流式响应
-
+![alt text](README/超级agent工具调用.png)
+![alt text](README/超级agent.png)
+![alt text](README/超级agent结果.png)
 ### 3. Spring AI 知识库 (SpringAiKnowledge)
 - 基于 RAG 的知识检索
 - 知识片段召回展示
 - 相关性评分显示
 - 可选择基于召回内容回答
-
-### 4. AI恋爱大师 (LoveMaster)
-- 情感顾问对话
-- 恋爱问题解答
-- 情感建议提供
+![alt text](README/RAG问答.png)
 
 ## 核心功能特性
 
@@ -105,7 +103,6 @@ npm run preview
 
 | 接口 | 方法 | 描述 |
 |------|------|------|
-| `/api/ai/love_app/chat/sse` | SSE | AI恋爱大师对话 |
 | `/api/ai/manus/chat` | SSE | AI超级智能体对话 |
 | `/api/ai/spring_ai/chat/sse` | SSE | Spring AI 知识库对话 |
 | `/api/ai/spring_ai/retrieve` | GET | 检索相关知识片段 |
@@ -122,4 +119,3 @@ npm run preview
 | `/` | 首页 | 应用入口和导航 |
 | `/super-agent` | AI超级智能体 | 全能AI助手 |
 | `/spring-ai-knowledge` | Spring AI 知识库 | 技术文档问答 |
-| `/love-master` | AI恋爱大师 | 情感顾问 |
